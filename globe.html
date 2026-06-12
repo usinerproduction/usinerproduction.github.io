@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explorez le Monde - UsinerProduction</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #080808;
+      --bg2: #0f0f0f;
+      --accent: #e8e0d5;
+      --accent2: #a89880;
+      --text: #EFEFEF;
+      --muted: #5a5a5a;
+      --border: #1c1c1c;
+      --gold: #a89880;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.4rem 4rem;
+      background: linear-gradient(to bottom, rgba(10,10,10,0.95), transparent);
+      transition: background 0.3s;
+    }
+    nav.scrolled { background: rgba(10,10,10,0.97); border-bottom: 1px solid var(--border); }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
+    }
+    .nav-logo-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      color: var(--text);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      list-style: none;
+      align-items: center;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--gold); }
+
+    .burger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      z-index: 200;
+    }
+    .burger span {
+      display: block;
+      width: 22px;
+      height: 1.5px;
+      background: var(--text);
+      transition: transform 0.3s, opacity 0.3s;
+      transform-origin: center;
+    }
+    .burger.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+    .burger.open span:nth-child(2) { opacity: 0; }
+    .burger.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+    @media (max-width: 768px) {
+      .burger { display: flex; }
+      nav { padding: 1rem 1.2rem; }
+      .nav-links {
+        position: fixed;
+        top: 0; right: -100%;
+        width: 65vw; height: 100vh;
+        background: rgba(8,8,18,0.97);
+        backdrop-filter: blur(12px);
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 2.5rem;
+        transition: right 0.4s cubic-bezier(0.16,1,0.3,1);
+        border-left: 1px solid var(--border);
+        z-index: 150;
+      }
+      .nav-links.open { right: 0; }
+    }
+
+    /* ── CONTAINER GLOBE ── */
+    #globe-container {
+      width: 100%;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0a0a12 0%, #1a0f1a 50%, #0f1a15 100%);
+    }
+
+    #canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── INFO PANNEAU ── */
+    .info-panel {
+      position: fixed;
+      bottom: 2rem;
+      left: 2rem;
+      right: auto;
+      width: 320px;
+      background: rgba(8, 8, 8, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      padding: 1.8rem;
+      border-radius: 4px;
+      z-index: 500;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.4s, transform 0.4s;
+      pointer-events: none;
+    }
+
+    .info-panel.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .info-panel-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.8rem;
+    }
+
+    .info-panel-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.8rem;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .info-panel-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .info-btn {
+      display: inline-block;
+      padding: 0.7rem 1.8rem;
+      background: var(--gold);
+      color: #080808;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.2s;
+      cursor: pointer;
+      border: none;
+      border-radius: 2px;
+    }
+
+    .info-btn:hover {
+      background: #fff;
+      transform: translateY(-2px);
+    }
+
+    /* ── INSTRUCTIONS ── */
+    .globe-instructions {
+      position: fixed;
+      top: 120px;
+      right: 2rem;
+      background: rgba(8, 8, 8, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      padding: 1.2rem 1.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      max-width: 200px;
+      z-index: 500;
+      line-height: 1.8;
+    }
+
+    .instruction-item {
+      margin-bottom: 0.8rem;
+    }
+
+    .instruction-item strong {
+      color: var(--gold);
+    }
+
+    /* ── LOADING ── */
+    .loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 8, 8, 0.95);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      backdrop-filter: blur(5px);
+    }
+
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 2px solid var(--border);
+      border-top: 2px solid var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1024px) {
+      nav { padding: 1.2rem 2rem; }
+      .globe-instructions { max-width: 160px; font-size: 0.7rem; }
+      .info-panel { width: 280px; bottom: 1.5rem; left: 1.5rem; }
+    }
+
+    @media (max-width: 768px) {
+      .globe-instructions { display: none; }
+      .info-panel { width: calc(100% - 2rem); bottom: 1rem; left: 1rem; right: 1rem; }
+      .nav-links { display: none; }
+    }
+
+    /* ── GLOBE SURFACE INTERACTIONS ── */
+    .country-label {
+      position: absolute;
+      font-size: 0.7rem;
+      color: var(--gold);
+      pointer-events: none;
+      text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
+      letter-spacing: 0.1em;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <span class="nav-logo-text">UsinerProduction</span>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html#services" onclick="closeMenu()">Services</a></li>
+      <li><a href="index.html#portfolio" onclick="closeMenu()">Portfolio</a></li>
+      <li><a href="globe.html" onclick="closeMenu()" style="color: var(--gold);">Globe</a></li>
+    </ul>
+    <button class="burger" id="burger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <!-- GLOBE CONTAINER -->
+  <div id="globe-container">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- INSTRUCTIONS -->
+  <div class="globe-instructions">
+    <div class="instruction-item"><strong>Souris:</strong> Rotation</div>
+    <div class="instruction-item"><strong>Scroll:</strong> Zoom</div>
+    <div class="instruction-item"><strong>Clic:</strong> Sélectionner</div>
+    <div class="instruction-item"><strong>Double-clic:</strong> Centrer</div>
+  </div>
+
+  <!-- INFO PANEL -->
+  <div class="info-panel" id="infoPanel">
+    <div class="info-panel-label">Destination</div>
+    <div class="info-panel-title" id="countryName">Vietnam</div>
+    <div class="info-panel-desc" id="countryDesc">Découvrez les paysages époustouflants et la culture vibrante du Vietnam à travers nos vidéos exclusives.</div>
+    <button class="info-btn" id="videoBtn" onclick="openCountryVideo('vietnam')">Voir la vidéo</button>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="loader"></div>
+  </div>
+
+  <script>
+    // ── CONFIGURATION ──
+    const COUNTRIES = {
+      vietnam: {
+        name: 'Vietnam',
+        desc: 'Découvrez les paysages époustouflants et la culture vibrante du Vietnam à travers nos vidéos exclusives.',
+        videoId: 'grszAOYAauM',
+        coords: { lat: 16, lon: 106 }
+      },
+      thailand: {
+        name: 'Thaïlande',
+        desc: 'Temples dorés, plages paradisiaques et vie nocturne dynamique vous attendent en Thaïlande.',
+        videoId: null,
+        coords: { lat: 15, lon: 101 }
+      },
+      japan: {
+        name: 'Japon',
+        desc: 'Entre tradition et modernité, le Japon offre des expériences visuelles extraordinaires.',
+        videoId: null,
+        coords: { lat: 36.2, lon: 138.25 }
+      },
+      indonesia: {
+        name: 'Indonésie',
+        desc: 'Volcans majestueux, rizières verdoyantes et îles paradisiaques vous enchantent.',
+        videoId: null,
+        coords: { lat: -2, lon: 113 }
+      },
+      france: {
+        name: 'France',
+        desc: 'Notre pays, capturé dans toute sa beauté et son élégance.',
+        videoId: null,
+        coords: { lat: 46.2, lon: 2.2 }
+      }
+    };
+
+    // ── THREE.JS SETUP ──
+    const scene = new THREE.Scene();
+    const canvas = document.getElementById('canvas');
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setClearColor(0x0a0a12);
+    camera.position.z = 2.5;
+
+    // ── CREATE GLOBE ──
+    const textureLoader = new THREE.TextureLoader();
+
+    // Utiliser une texture de terre simple mais belle
+    // Alternative: texture 4K haute qualité de la planète
+    const earthTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
+    
+    // Fallback texture si la première ne charge pas
+    earthTexture.onError = () => {
+      const canvas2d = document.createElement('canvas');
+      canvas2d.width = 2048;
+      canvas2d.height = 1024;
+      const ctx = canvas2d.getContext('2d');
+      
+      // Créer une texture dégradée représentant la terre
+      ctx.fillStyle = '#1a4d2e';
+      ctx.fillRect(0, 0, 2048, 1024);
+      
+      // Ajouter des variations
+      ctx.fillStyle = '#2d6e4c';
+      for (let i = 0; i < 100; i++) {
+        ctx.fillRect(Math.random() * 2048, Math.random() * 1024, Math.random() * 100, Math.random() * 100);
+      }
+      ctx.fillStyle = '#4a90e2';
+      for (let i = 0; i < 50; i++) {
+        ctx.fillRect(Math.random() * 2048, Math.random() * 1024, Math.random() * 200, Math.random() * 150);
+      }
+      
+      const fallbackTexture = new THREE.CanvasTexture(canvas2d);
+      const geometry = new THREE.SphereGeometry(1, 64, 64);
+      const material = new THREE.MeshPhongMaterial({ map: fallbackTexture });
+      const globe = new THREE.Mesh(geometry, material);
+      scene.add(globe);
+      window.globe = globe;
+    };
+
+    const geometry = new THREE.SphereGeometry(1, 128, 128);
+    const material = new THREE.MeshPhongMaterial({
+      map: earthTexture,
+      emissive: 0x1a1a2e,
+      emissiveIntensity: 0.3,
+      shininess: 5
+    });
+    const globe = new THREE.Mesh(geometry, material);
+    scene.add(globe);
+    window.globe = globe;
+
+    // ── ÉCLAIRAGE ──
+    const light1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    light1.position.set(5, 3, 5);
+    scene.add(light1);
+
+    const light2 = new THREE.DirectionalLight(0xaabbff, 0.4);
+    light2.position.set(-5, -3, -5);
+    scene.add(light2);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    // ── POINTS DE PAYS ──
+    const countryPoints = {};
+    const pointsGeometry = new THREE.BufferGeometry();
+    const pointsMaterial = new THREE.PointsMaterial({
+      color: 0xa89880,
+      size: 0.015,
+      sizeAttenuation: true
+    });
+
+    Object.keys(COUNTRIES).forEach(key => {
+      const country = COUNTRIES[key];
+      const lat = country.coords.lat * Math.PI / 180;
+      const lon = country.coords.lon * Math.PI / 180;
+
+      const x = Math.cos(lat) * Math.cos(lon);
+      const y = Math.sin(lat);
+      const z = Math.cos(lat) * Math.sin(lon);
+
+      countryPoints[key] = { x, y, z, ...country };
+    });
+
+    // ── RAYCASTER POUR INTERACTION ──
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let selectedCountry = 'vietnam';
+
+    // ── CONTRÔLES SOURIS ──
+    let isMouseDown = false;
+    let mouseX = 0, mouseY = 0;
+    let targetRotationX = 0, targetRotationY = 0;
+
+    document.addEventListener('mousedown', (e) => {
+      isMouseDown = true;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isMouseDown) {
+        const deltaX = e.clientX - mouseX;
+        const deltaY = e.clientY - mouseY;
+        targetRotationY += deltaX * 0.003;
+        targetRotationX += deltaY * 0.003;
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isMouseDown = false;
+    });
+
+    document.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      camera.position.z += e.deltaY * 0.001;
+      camera.position.z = Math.max(1.5, Math.min(5, camera.position.z));
+    }, { passive: false });
+
+    document.addEventListener('click', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersection = raycaster.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(0, 0, 0), 1));
+      
+      if (intersection) {
+        const closest = intersection[0];
+        let closestCountry = null;
+        let closestDist = Infinity;
+
+        Object.keys(countryPoints).forEach(key => {
+          const point = countryPoints[key];
+          const dist = new THREE.Vector3(point.x, point.y, point.z).distanceTo(closest);
+          if (dist < closestDist) {
+            closestDist = dist;
+            closestCountry = key;
+          }
+        });
+
+        if (closestCountry && closestDist < 0.2) {
+          selectCountry(closestCountry);
+        }
+      }
+    });
+
+    // ── FONCTIONS ──
+    function selectCountry(key) {
+      selectedCountry = key;
+      const country = countryPoints[key];
+      
+      document.getElementById('countryName').textContent = country.name;
+      document.getElementById('countryDesc').textContent = country.desc;
+      
+      const videoBtn = document.getElementById('videoBtn');
+      if (country.videoId) {
+        videoBtn.style.opacity = '1';
+        videoBtn.style.pointerEvents = 'auto';
+        videoBtn.textContent = 'Voir la vidéo';
+      } else {
+        videoBtn.style.opacity = '0.5';
+        videoBtn.style.pointerEvents = 'none';
+        videoBtn.textContent = 'Vidéo à venir';
+      }
+
+      document.getElementById('infoPanel').classList.add('visible');
+    }
+
+    window.openCountryVideo = function(country) {
+      const videoId = countryPoints[country]?.videoId;
+      if (videoId) {
+        window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+      }
+    };
+
+    // ── ANIMATION LOOP ──
+    function animate() {
+      requestAnimationFrame(animate);
+
+      globe.rotation.x += (targetRotationX - globe.rotation.x) * 0.05;
+      globe.rotation.y += (targetRotationY - globe.rotation.y) * 0.05;
+      
+      globe.rotation.z += 0.0001; // Léger spin continu
+
+      renderer.render(scene, camera);
+    }
+
+    // ── EVENT LISTENERS ──
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function toggleMenu() {
+      document.getElementById('navLinks').classList.toggle('open');
+      document.getElementById('burger').classList.toggle('open');
+    }
+
+    function closeMenu() {
+      document.getElementById('navLinks').classList.remove('open');
+      document.getElementById('burger').classList.remove('open');
+    }
+
+    // ── INIT ──
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loading').style.display = 'none';
+        selectCountry('vietnam');
+        animate();
+      }, 800);
+    });
+  </script>
+</body>
+</html>
